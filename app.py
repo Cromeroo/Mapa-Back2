@@ -4,6 +4,9 @@ from flask_cors import CORS
 from ee_utils import *
 from flask_caching import Cache
 from datetime import date
+from flask import request, jsonify
+import json
+import os
 import ee
 
 app = Flask(__name__)
@@ -126,9 +129,97 @@ def calculate_ndvi():
     ndvi_url = mean_ndvi.getThumbURL({
         'min': -1, 'max': 1, 'dimensions': 512, 'format': 'png', 'palette': ['blue', 'white', 'green']
     })
+
+
+
+
+
+
+
+@app.route('/process_geojson', methods=['GET'])
+def process_geojson():
+    try:
+        geojson_path = os.path.join(app.static_folder, 'colombia.geo.json')
+
+        with open(geojson_path, 'r') as file:
+            geojson_data = json.load(file)
+
+        return jsonify(geojson_data)
+
+    except FileNotFoundError:
+        return jsonify({"error": "Archivo GeoJSON no encontrado"}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/process_geojson', methods=['POST'])
+def process_geojson():
+    data = request.get_json()
+    coordinates = data.get('coordinates', [])
+
+    # Aquí deberías añadir la lógica para procesar las coordenadas
+    # Por ejemplo, verificar si las coordenadas están dentro de cierta región
+    # Si las coordenadas son válidas, entonces procede a leer el archivo GeoJSON
+
+    try:
+        geojson_path = os.path.join(app.static_folder, 'colombia.geo.json')
+
+        with open(geojson_path, 'r') as file:
+            geojson_data = json.load(file)
+
+        # Aquí puedes añadir lógica para filtrar el contenido de geojson_data
+        # basado en las coordenadas recibidas, si es necesario
+
+        return jsonify(geojson_data)
+
+    except FileNotFoundError:
+        return jsonify({"error": "Archivo GeoJSON no encontrado"}), 404
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
+
+@app.route('/timeSeriesIndex', methods=['POST'])
+def time_series_index():
+    try:
+        request_json = request.get_json()
+        if request_json:
+            geometry = request_json.get('geometry', None)
+            collection_name = request_json.get('collectionNameTimeSeries', None)
+            if geometry:
+                values = get_time_series_by_collection_and_index(collection_name,
+                                                                     request_json.get('indexName', None),
+                                                                     float(request_json.get('scale', 30)),
+                                                                     geometry,
+                                                                     request_json.get('dateFromTimeSeries', None),
+                                                                     request_json.get('dateToTimeSeries', None),
+                                                                     request_json.get('reducer', None)
+                                                                     )
+            else:
+                raise Exception
+        else:
+            raise Exception
+    except Exception as e:\
+        values = {
+            'errMsg': str(e)
+        }
+    return jsonify(values), 200
+
+
+
     
     # Returns the NDVI data as a URL that can be used to display the image.
     return jsonify({'ndvi_url': ndvi_url})
+
+
+
+
+
+
+
 
 
 if __name__ == "_main_":
